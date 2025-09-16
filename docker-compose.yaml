@@ -33,6 +33,11 @@ services:
       - "8761:8761"
     networks:
       - microservices-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8761/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   resource-db:
     image: postgres:${POSTGRES_VERSION}
@@ -47,6 +52,11 @@ services:
       - ./init-scripts/resource-db:/docker-entrypoint-initdb.d
     networks:
       - microservices-net
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${RESOURCE_DB_USER}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   song-db:
     image: postgres:${POSTGRES_VERSION}
@@ -61,6 +71,11 @@ services:
       - ./init-scripts/song-db:/docker-entrypoint-initdb.d
     networks:
       - microservices-net
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${SONG_DB_USER}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   resource-service:
     build:
@@ -80,9 +95,9 @@ services:
       resource-db:
         condition: service_healthy
       resource-processor:
-        condition: service_healthy
+        condition: service_started
       song-service:
-        condition: service_healthy
+        condition: service_started
       eureka-server:
         condition: service_healthy
     networks:
@@ -103,7 +118,7 @@ services:
       EUREKA_URI: "eureka-server"
     depends_on:
       song-service:
-        condition: service_healthy
+        condition: service_started
       eureka-server:
         condition: service_healthy
     networks:
