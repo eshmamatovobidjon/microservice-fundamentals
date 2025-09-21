@@ -41,7 +41,19 @@ services:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:8761/actuator/health"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+
+  api-gateway:
+    build: ./api-gateway
+    ports:
+      - "8080:8080"
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+    environment:
+      EUREKA_URI: "eureka-server"
+    networks:
+      - microservices-net
 
   resource-db:
     image: postgres:${POSTGRES_VERSION}
@@ -60,7 +72,7 @@ services:
       test: [ "CMD-SHELL", "pg_isready -U ${RESOURCE_DB_USER}" ]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
 
   song-db:
     image: postgres:${POSTGRES_VERSION}
@@ -79,7 +91,7 @@ services:
       test: [ "CMD-SHELL", "pg_isready -U ${SONG_DB_USER}" ]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
 
   resource-service:
     build:
@@ -114,7 +126,7 @@ services:
       dockerfile: Dockerfile
     container_name: resource-processor
     ports:
-      - "8080:8080"
+      - "8085:8085"
     environment:
       RESOURCE_SERVICE_NAME: "resource-service"
       RESOURCE_SERVICE_PORT: "8081"
