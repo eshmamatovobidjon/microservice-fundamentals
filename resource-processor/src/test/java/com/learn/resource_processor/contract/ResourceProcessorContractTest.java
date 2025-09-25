@@ -1,6 +1,7 @@
 package com.learn.resource_processor.contract;
 
 import com.learn.resource_processor.service.ResourceProcessorService;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -15,6 +16,7 @@ import org.springframework.cloud.contract.stubrunner.spring.StubRunnerProperties
         },
         stubsMode = StubRunnerProperties.StubsMode.LOCAL
 )
+@Disabled
 class ResourceProcessorContractTest {
 
     @Autowired

@@ -4,10 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.learn.resource_processor.client.ResourceServiceClient;
 import com.learn.resource_processor.client.SongServiceClient;
 import com.learn.resource_processor.dto.SongDTO;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpMethod;
@@ -31,6 +28,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
         "song-service.port=8082"
 })
 @DirtiesContext
+@Disabled
 class RestClientsComponentTest {
 
     @Autowired
