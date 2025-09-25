@@ -26,6 +26,7 @@ public class SongServiceImpl implements SongService {
         if (songRepository.existsById(song.getId())) {
             throw new ConflictException("Song metadata for this resource already exists id = " + song.getId());
         }
+        System.out.println("Song to be created: " + song);
         return songRepository.save(song);
     }
 

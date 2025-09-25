@@ -23,35 +23,41 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-    networks:
-      - microservices-net
     depends_on:
       - zookeeper
+    networks:
+      - microservices-net
 
   eureka-server:
+    container_name: eureka-server
     build:
       context: ./eureka-server
       dockerfile: Dockerfile
-    container_name: eureka-server
     ports:
       - "8761:8761"
-    networks:
-      - microservices-net
+    environment:
+      SERVER_PORT: 8761
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:8761/actuator/health"]
       interval: 10s
       timeout: 5s
       retries: 10
+    networks:
+      - microservices-net
 
   api-gateway:
-    build: ./api-gateway
+    container_name: api-gateway
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
     ports:
       - "8080:8080"
+    environment:
+      SERVER_PORT: 8080
+      EUREKA_URL: http://eureka-server:8761
     depends_on:
       eureka-server:
         condition: service_healthy
-    environment:
-      EUREKA_URI: "eureka-server"
     networks:
       - microservices-net
 
@@ -66,13 +72,13 @@ services:
       - "${RESOURCE_DB_PORT}:5432"
     volumes:
       - ./init-scripts/resource-db:/docker-entrypoint-initdb.d
-    networks:
-      - microservices-net
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U ${RESOURCE_DB_USER}" ]
       interval: 10s
       timeout: 5s
       retries: 10
+    networks:
+      - microservices-net
 
   song-db:
     image: postgres:${POSTGRES_VERSION}
@@ -85,13 +91,13 @@ services:
       - "${SONG_DB_PORT}:5432"
     volumes:
       - ./init-scripts/song-db:/docker-entrypoint-initdb.d
-    networks:
-      - microservices-net
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U ${SONG_DB_USER}" ]
       interval: 10s
       timeout: 5s
       retries: 10
+    networks:
+      - microservices-net
 
   resource-service:
     build:
@@ -101,12 +107,13 @@ services:
     ports:
       - "8081:8081"
     environment:
+      SERVER_PORT: 8081
       SPRING_DATASOURCE_URL: "${RESOURCE_DB_URL}"
       SPRING_DATASOURCE_USERNAME: "${RESOURCE_DB_USER}"
       SPRING_DATASOURCE_PASSWORD: "${RESOURCE_DB_PASSWORD}"
-      SONG_SERVICE_NAME: "song-service"
-      SONG_SERVICE_PORT: "8082"
-      EUREKA_URI: "eureka-server"
+      SONG_SERVICE_NAME: "api-gateway"
+      SONG_SERVICE_PORT: "8080"
+      EUREKA_URL: http://eureka-server:8761
       KAFKA_URL: "kafka:9092"
     depends_on:
       resource-db:
@@ -128,11 +135,12 @@ services:
     ports:
       - "8085:8085"
     environment:
-      RESOURCE_SERVICE_NAME: "resource-service"
-      RESOURCE_SERVICE_PORT: "8081"
-      SONG_SERVICE_NAME: "song-service"
-      SONG_SERVICE_PORT: "8082"
-      EUREKA_URI: "eureka-server"
+      SERVER_PORT: 8085
+      RESOURCE_SERVICE_NAME: "api-gateway"
+      RESOURCE_SERVICE_PORT: "8080"
+      SONG_SERVICE_NAME: "api-gateway"
+      SONG_SERVICE_PORT: "8080"
+      EUREKA_URL: http://eureka-server:8761
       KAFKA_URL: "kafka:9092"
     depends_on:
       song-service:
@@ -146,15 +154,17 @@ services:
     build:
       context: ./song-service
       dockerfile: Dockerfile
+    container_name: song-service
     deploy:
       replicas: 1
     ports:
       - "8082:8082"
     environment:
+      SERVER_PORT: 8082
       SPRING_DATASOURCE_URL: "${SONG_DB_URL}"
       SPRING_DATASOURCE_USERNAME: "${SONG_DB_USER}"
       SPRING_DATASOURCE_PASSWORD: "${SONG_DB_PASSWORD}"
-      EUREKA_URI: "eureka-server"
+      EUREKA_URL: http://eureka-server:8761
     depends_on:
       song-db:
         condition: service_healthy

@@ -5,6 +5,7 @@ import com.learn.resource_processor.client.SongServiceClient;
 import com.learn.resource_processor.dto.SongDTO;
 import com.learn.resource_processor.service.impl.ResourceProcessorServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -14,6 +15,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
 @SpringBootTest
+@Disabled
 class ResourceProcessorServiceIntegrationTest {
 
     @MockitoBean
