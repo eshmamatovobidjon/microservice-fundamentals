@@ -98,9 +98,9 @@ public class ResourceServiceImpl implements ResourceService {
     @Override
     public Resource getResourceById(Long id) {
         validateId(id);
-        StorageDTO storage = storageServiceClient.getStorageByType(StorageType.PERMANENT);
         Resource resource = resourceRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Resource with ID=" + id + " not found"));
+        StorageDTO storage = storageServiceClient.getStorageByType(resource.getStorageType());
 
         if (resource.getS3Url() != null) {
             String fileName = extractFileNameFromS3Url(resource.getS3Url());
@@ -121,7 +121,6 @@ public class ResourceServiceImpl implements ResourceService {
     @Transactional(rollbackOn = Exception.class)
     public List<Long> deleteResourcesByIds(String csvIds) {
         validateCsvIds(csvIds);
-        StorageDTO storage = storageServiceClient.getStorageByType(StorageType.PERMANENT);
         List<Long> deletedIds = new ArrayList<>();
 
         List<Long> ids = Arrays.stream(csvIds.split(","))
@@ -133,6 +132,7 @@ public class ResourceServiceImpl implements ResourceService {
             Optional<Resource> resourceOpt = resourceRepository.findById(id);
             if (resourceOpt.isPresent()) {
                 Resource resource = resourceOpt.get();
+                StorageDTO storage = storageServiceClient.getStorageByType(resource.getStorageType());
 
                 try {
                     if (resource.getS3Url() != null) {
@@ -159,9 +159,9 @@ public class ResourceServiceImpl implements ResourceService {
     @Override
     public byte[] getResourceContent(Long id) {
         validateId(id);
-        StorageDTO storage = storageServiceClient.getStorageByType(StorageType.STAGING);
         Resource resource = resourceRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Resource with ID=" + id + " not found"));
+        StorageDTO storage = storageServiceClient.getStorageByType(resource.getStorageType());
 
         if (resource.getS3Url() == null) {
             throw new RuntimeException("Resource " + id + " has no S3 URL - cannot retrieve content");
