@@ -99,6 +99,25 @@ services:
     networks:
       - microservices-net
 
+  storage-db:
+    image: postgres:${POSTGRES_VERSION}
+    container_name: storage-db
+    environment:
+      POSTGRES_DB: ${STORAGE_DB}
+      POSTGRES_USER: ${STORAGE_DB_USER}
+      POSTGRES_PASSWORD: ${STORAGE_DB_PASSWORD}
+    ports:
+      - "${STORAGE_DB_PORT}:5432"
+    volumes:
+      - ./init-scripts/storage-db:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${STORAGE_DB_USER}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - microservices-net
+
   resource-service:
     build:
       context: ./resource-service
@@ -111,8 +130,10 @@ services:
       SPRING_DATASOURCE_URL: "${RESOURCE_DB_URL}"
       SPRING_DATASOURCE_USERNAME: "${RESOURCE_DB_USER}"
       SPRING_DATASOURCE_PASSWORD: "${RESOURCE_DB_PASSWORD}"
-      SONG_SERVICE_NAME: "api-gateway"
-      SONG_SERVICE_PORT: "8080"
+      SONG_SERVICE_NAME: "song-service"
+      SONG_SERVICE_PORT: "8082"
+      STORAGE_SERVICE_NAME: "storage-service"
+      STORAGE_SERVICE_PORT: "8086"
       EUREKA_URL: http://eureka-server:8761
       KAFKA_URL: "kafka:9092"
     depends_on:
@@ -136,10 +157,10 @@ services:
       - "8085:8085"
     environment:
       SERVER_PORT: 8085
-      RESOURCE_SERVICE_NAME: "api-gateway"
-      RESOURCE_SERVICE_PORT: "8080"
-      SONG_SERVICE_NAME: "api-gateway"
-      SONG_SERVICE_PORT: "8080"
+      RESOURCE_SERVICE_NAME: "resource-service"
+      RESOURCE_SERVICE_PORT: "8081"
+      SONG_SERVICE_NAME: "song-service"
+      SONG_SERVICE_PORT: "8082"
       EUREKA_URL: http://eureka-server:8761
       KAFKA_URL: "kafka:9092"
     depends_on:
@@ -167,6 +188,29 @@ services:
       EUREKA_URL: http://eureka-server:8761
     depends_on:
       song-db:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    networks:
+      - microservices-net
+
+  storage-service:
+    build:
+      context: ./storage-service
+      dockerfile: Dockerfile
+    container_name: storage-service
+    deploy:
+      replicas: 1
+    ports:
+      - "8086:8086"
+    environment:
+      SERVER_PORT: 8086
+      SPRING_DATASOURCE_URL: "${STORAGE_DB_URL}"
+      SPRING_DATASOURCE_USERNAME: "${STORAGE_DB_USER}"
+      SPRING_DATASOURCE_PASSWORD: "${STORAGE_DB_PASSWORD}"
+      EUREKA_URL: http://eureka-server:8761
+    depends_on:
+      storage-db:
         condition: service_healthy
       eureka-server:
         condition: service_healthy

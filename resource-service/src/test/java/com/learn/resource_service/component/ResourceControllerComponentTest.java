@@ -2,6 +2,8 @@ package com.learn.resource_service.component;
 
 import com.learn.resource_service.client.S3Service;
 import com.learn.resource_service.client.SongServiceClient;
+import com.learn.resource_service.dto.StorageDTO;
+import com.learn.resource_service.dto.StorageType;
 import com.learn.resource_service.entity.Resource;
 import com.learn.resource_service.kafka.ResourceProducer;
 import com.learn.resource_service.repository.ResourceRepository;
@@ -69,10 +71,18 @@ class ResourceControllerComponentTest {
 
     private byte[] validMp3Data;
 
+    private StorageDTO stagingStorage;
+
     @BeforeEach
     void setUp() {
         resourceRepository.deleteAll();
         validMp3Data = createValidMp3Data();
+
+        stagingStorage = new StorageDTO();
+        stagingStorage.setId(1L);
+        stagingStorage.setStorageType(StorageType.STAGING);
+        stagingStorage.setBucket("test-bucket");
+        stagingStorage.setPath("staging/");
     }
 
     private byte[] createValidMp3Data() {
@@ -87,8 +97,8 @@ class ResourceControllerComponentTest {
     void uploadResource_EndToEndWithRealInfrastructure_Success() {
         // Given
         String s3Url = "https://test-bucket.s3.amazonaws.com/component-test.mp3";
-        when(s3Service.uploadMp3(any(byte[].class), anyString())).thenReturn(s3Url);
-        when(s3Service.fileExists(anyString())).thenReturn(true);
+        when(s3Service.uploadMp3(any(byte[].class), anyString(), any())).thenReturn(s3Url);
+        when(s3Service.fileExists(anyString(), any())).thenReturn(true);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.parseMediaType("audio/mpeg"));
@@ -110,7 +120,7 @@ class ResourceControllerComponentTest {
         assertEquals(s3Url, savedResource.getS3Url());
 
         // Verify S3 interactions
-        verify(s3Service).fileExists(anyString());
+        verify(s3Service).fileExists(anyString(), any());
     }
 
     @Test
@@ -121,7 +131,7 @@ class ResourceControllerComponentTest {
         resource.setS3Url("https://test-bucket.s3.amazonaws.com/info-test.mp3");
         Resource savedResource = resourceRepository.save(resource);
 
-        when(s3Service.fileExists("info-test.mp3")).thenReturn(true);
+        when(s3Service.fileExists("info-test.mp3", stagingStorage)).thenReturn(true);
 
         // When
         ResponseEntity<Resource> response = restTemplate.getForEntity(
@@ -136,7 +146,7 @@ class ResourceControllerComponentTest {
         assertEquals(savedResource.getS3Url(), response.getBody().getS3Url());
 
         // Verify S3 file existence check
-        verify(s3Service).fileExists("info-test.mp3");
+        verify(s3Service).fileExists("info-test.mp3", stagingStorage);
     }
 
     @Test
@@ -166,7 +176,7 @@ class ResourceControllerComponentTest {
         resource.setS3Url("https://test-bucket.s3.amazonaws.com/download-test.mp3");
         Resource savedResource = resourceRepository.save(resource);
 
-        when(s3Service.downloadFile("download-test.mp3")).thenReturn(validMp3Data);
+        when(s3Service.downloadFile("download-test.mp3", stagingStorage)).thenReturn(validMp3Data);
 
         // When
         ResponseEntity<byte[]> response = restTemplate.getForEntity(
@@ -184,7 +194,7 @@ class ResourceControllerComponentTest {
         assertTrue(contentDisposition.contains("resource_" + savedResource.getId() + ".mp3"));
 
         // Verify S3 download was called
-        verify(s3Service).downloadFile("download-test.mp3");
+        verify(s3Service).downloadFile("download-test.mp3", stagingStorage);
     }
 
     @Test
@@ -195,7 +205,7 @@ class ResourceControllerComponentTest {
         Resource resource2 = resourceRepository.save(createResource("delete2.mp3"));
         Resource resource3 = resourceRepository.save(createResource("delete3.mp3"));
 
-        when(s3Service.fileExists(anyString())).thenReturn(false); // Simulate successful S3 deletion
+        when(s3Service.fileExists(anyString(), any())).thenReturn(false); // Simulate successful S3 deletion
         doNothing().when(songServiceClient).deleteSongById(anyLong());
         String csvIds = String.format("%d,%d,%d", resource1.getId(), resource2.getId(), resource3.getId());
 
@@ -222,16 +232,16 @@ class ResourceControllerComponentTest {
         assertEquals(0, resourceRepository.count());
 
         // Verify S3 cleanup calls
-        verify(s3Service).deleteFile("delete1.mp3");
-        verify(s3Service).deleteFile("delete2.mp3");
-        verify(s3Service).deleteFile("delete3.mp3");
+        verify(s3Service).deleteFile("delete1.mp3", stagingStorage);
+        verify(s3Service).deleteFile("delete2.mp3", stagingStorage);
+        verify(s3Service).deleteFile("delete3.mp3", stagingStorage);
     }
 
     @Test
     @DisplayName("Component Test: Should handle S3 upload failure with proper HTTP response")
     void uploadResource_S3UploadFails_Returns500() {
         // Given
-        when(s3Service.uploadMp3(any(byte[].class), anyString()))
+        when(s3Service.uploadMp3(any(byte[].class), anyString(), any()))
                 .thenThrow(new RuntimeException("S3 upload failed"));
 
         HttpHeaders headers = new HttpHeaders();

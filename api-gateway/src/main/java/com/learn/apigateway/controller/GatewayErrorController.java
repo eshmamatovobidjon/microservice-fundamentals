@@ -42,6 +42,13 @@ public class GatewayErrorController {
                 .body(body(status, "Resource processor is currently unavailable. Please try again later."));
     }
 
+    @RequestMapping("/fallback/storages")
+    public ResponseEntity<Map<String, Object>> storageServiceFallback() {
+        HttpStatus status = HttpStatus.SERVICE_UNAVAILABLE;
+        return ResponseEntity.status(status)
+                .body(body(status, "Storage service is currently unavailable. Please try again later."));
+    }
+
     @RequestMapping("/fallback")
     public ResponseEntity<Map<String, Object>> routeNotFound() {
         HttpStatus status = HttpStatus.NOT_FOUND;

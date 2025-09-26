@@ -2,6 +2,8 @@ package com.learn.resource_service.integration;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.learn.resource_service.client.S3Service;
+import com.learn.resource_service.dto.StorageDTO;
+import com.learn.resource_service.dto.StorageType;
 import com.learn.resource_service.entity.Resource;
 import com.learn.resource_service.kafka.ResourceProducer;
 import com.learn.resource_service.repository.ResourceRepository;
@@ -81,19 +83,26 @@ class ResourceServiceIntegrationTest {
 
     private String baseUrl;
     private byte[] validMp3Data;
+    private StorageDTO stagingStorage;
 
     @BeforeEach
     void setUp() throws Exception {
         baseUrl = "http://localhost:" + port + "/resources";
 
+        stagingStorage = new StorageDTO();
+        stagingStorage.setId(1L);
+        stagingStorage.setStorageType(StorageType.STAGING);
+        stagingStorage.setBucket("test-bucket");
+        stagingStorage.setPath("staging/");
+
         validMp3Data = createValidMp3Data();
 
         reset(s3Service, resourceProducer);
 
-        when(s3Service.uploadMp3(any(byte[].class), anyString()))
+        when(s3Service.uploadMp3(any(byte[].class), anyString(), any()))
                 .thenReturn("https://test-bucket.s3.amazonaws.com/test-file.mp3");
-        when(s3Service.fileExists(anyString())).thenReturn(true);
-        when(s3Service.downloadFile(anyString())).thenReturn(validMp3Data);
+        when(s3Service.fileExists(anyString(), any())).thenReturn(true);
+        when(s3Service.downloadFile(anyString(), any())).thenReturn(validMp3Data);
         doNothing().when(resourceProducer).sendId(anyLong());
     }
 
@@ -125,8 +134,8 @@ class ResourceServiceIntegrationTest {
         assertThat(savedResource.get().getS3Url()).isEqualTo("https://test-bucket.s3.amazonaws.com/test-file.mp3");
 
         // Verify S3 service calls
-        verify(s3Service, times(1)).uploadMp3(eq(validMp3Data), anyString());
-        verify(s3Service, times(1)).fileExists(anyString());
+        verify(s3Service, times(1)).uploadMp3(eq(validMp3Data), anyString(), any());
+        verify(s3Service, times(1)).fileExists(anyString(), any());
 
         // Verify Kafka producer call
         verify(resourceProducer, times(1)).sendId(resourceId);
@@ -153,7 +162,7 @@ class ResourceServiceIntegrationTest {
     @Test
     void shouldHandleS3UploadFailure() {
         // Given
-        when(s3Service.uploadMp3(any(byte[].class), anyString()))
+        when(s3Service.uploadMp3(any(byte[].class), anyString(), any()))
                 .thenThrow(new RuntimeException("S3 upload failed"));
 
         HttpHeaders headers = new HttpHeaders();
@@ -190,7 +199,7 @@ class ResourceServiceIntegrationTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
 
         // Verify cleanup was performed
-        verify(s3Service, times(1)).deleteFile(anyString());
+        verify(s3Service, times(1)).deleteFile(anyString(), any());
 
         // Verify transaction rollback - no database record should exist
         assertThat(resourceRepository.count()).isZero();
@@ -212,7 +221,7 @@ class ResourceServiceIntegrationTest {
         assertThat(response.getBody().getS3Url()).isEqualTo(resource.getS3Url());
 
         // Verify S3 existence check
-        verify(s3Service, times(1)).fileExists(anyString());
+        verify(s3Service, times(1)).fileExists(anyString(), any());
     }
 
     @Test
@@ -244,7 +253,7 @@ class ResourceServiceIntegrationTest {
         assertThat(contentDisposition).contains("resource_" + resource.getId() + ".mp3");
 
         // Verify S3 download call
-        verify(s3Service, times(1)).downloadFile(anyString());
+        verify(s3Service, times(1)).downloadFile(anyString(), any());
     }
 
     @Test
@@ -261,7 +270,7 @@ class ResourceServiceIntegrationTest {
     void shouldHandleS3DownloadFailure() {
         // Given
         Resource resource = createResourceInDatabase();
-        when(s3Service.downloadFile(anyString()))
+        when(s3Service.downloadFile(anyString(), any()))
                 .thenThrow(new RuntimeException("S3 download failed"));
 
         // When
