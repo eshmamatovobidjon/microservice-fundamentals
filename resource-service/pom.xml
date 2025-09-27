@@ -72,6 +72,11 @@
             <artifactId>spring-kafka</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
         <!-- AspectJ for Spring AOP and Retry -->
         <dependency>
             <groupId>org.aspectj</groupId>
