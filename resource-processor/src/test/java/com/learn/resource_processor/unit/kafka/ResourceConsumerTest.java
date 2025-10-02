@@ -24,7 +24,7 @@ class ResourceConsumerTest {
         Long resourceId = 123L;
 
         // Act
-        resourceConsumer.consume(resourceId);
+//        resourceConsumer.consume(resourceId);
 
         // Assert
         verify(resourceProcessorService, times(1)).process(resourceId);

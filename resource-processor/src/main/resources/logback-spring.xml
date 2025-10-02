@@ -21,7 +21,8 @@
                             "application": "resource-processor",
                             "environment": "${SPRING_PROFILES_ACTIVE:-default}",
                             "host": "${HOSTNAME:-unknown}",
-                            "port": "${SERVER_PORT:-8085}"
+                            "port": "${SERVER_PORT:-8085}",
+                            "traceId": "%mdc{traceId}"
                             }
                         </pattern>
                     </pattern>
@@ -54,7 +55,8 @@
                             "application": "resource-processor",
                             "environment": "${SPRING_PROFILES_ACTIVE:-default}",
                             "host": "${HOSTNAME:-unknown}",
-                            "port": "${SERVER_PORT:-8085}"
+                            "port": "${SERVER_PORT:-8085}",
+                            "traceId": "%mdc{traceId}"
                             }
                         </pattern>
                     </pattern>
@@ -92,7 +94,7 @@
     <springProfile name="test">
         <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
             <encoder>
-                <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+                <pattern>%d{HH:mm:ss.SSS} [%thread] [%X{traceId}] %-5level %logger{36} - %msg%n</pattern>
             </encoder>
         </appender>
 
