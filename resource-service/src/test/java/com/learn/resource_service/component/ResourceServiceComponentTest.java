@@ -2,6 +2,8 @@ package com.learn.resource_service.component;
 
 import com.learn.resource_service.client.S3Service;
 import com.learn.resource_service.client.SongServiceClient;
+import com.learn.resource_service.dto.StorageDTO;
+import com.learn.resource_service.dto.StorageType;
 import com.learn.resource_service.entity.Resource;
 import com.learn.resource_service.kafka.ResourceProducer;
 import com.learn.resource_service.repository.ResourceRepository;
@@ -73,10 +75,18 @@ class ResourceServiceComponentTest {
 
     private byte[] validMp3Data;
 
+    private StorageDTO stagingStorage;
+
     @BeforeEach
     void setUp() {
         resourceRepository.deleteAll();
         validMp3Data = createValidMp3Data();
+
+        stagingStorage = new StorageDTO();
+        stagingStorage.setId(1L);
+        stagingStorage.setStorageType(StorageType.STAGING);
+        stagingStorage.setBucket("test-bucket");
+        stagingStorage.setPath("staging/");
     }
 
     private byte[] createValidMp3Data() {
@@ -91,8 +101,8 @@ class ResourceServiceComponentTest {
     void uploadResource_WithRealDBAndKafka_Success() {
         // Given
         String s3Url = "https://test-bucket.s3.amazonaws.com/test-file.mp3";
-        when(s3Service.uploadMp3(any(byte[].class), anyString())).thenReturn(s3Url);
-        when(s3Service.fileExists(anyString())).thenReturn(true);
+        when(s3Service.uploadMp3(any(byte[].class), anyString(), any())).thenReturn(s3Url);
+        when(s3Service.fileExists(anyString(), any())).thenReturn(true);
 
         // When
         Long resourceId = resourceService.uploadResource(validMp3Data);
@@ -107,7 +117,7 @@ class ResourceServiceComponentTest {
         assertNotNull(savedResource.get().getUploadedAt());
 
         // Verify mocked S3 interactions
-        verify(s3Service).fileExists(anyString());
+        verify(s3Service).fileExists(anyString(), any());
     }
 
     @Test
@@ -118,7 +128,7 @@ class ResourceServiceComponentTest {
         resource.setS3Url("https://test-bucket.s3.amazonaws.com/existing-file.mp3");
         Resource savedResource = resourceRepository.save(resource);
 
-        when(s3Service.fileExists("existing-file.mp3")).thenReturn(true);
+        when(s3Service.fileExists("existing-file.mp3", stagingStorage)).thenReturn(true);
 
         // When
         Resource result = resourceService.getResourceById(savedResource.getId());
@@ -128,7 +138,7 @@ class ResourceServiceComponentTest {
         assertEquals(savedResource.getS3Url(), result.getS3Url());
 
         // Verify real database was queried
-        verify(s3Service).fileExists("existing-file.mp3");
+        verify(s3Service).fileExists("existing-file.mp3", stagingStorage);
     }
 
     @Test
@@ -139,7 +149,7 @@ class ResourceServiceComponentTest {
         Resource resource2 = resourceRepository.save(createResource("file2.mp3"));
         Resource resource3 = resourceRepository.save(createResource("file3.mp3"));
 
-        when(s3Service.fileExists(anyString())).thenReturn(false); // Simulate successful S3 deletion
+        when(s3Service.fileExists(anyString(), any())).thenReturn(false); // Simulate successful S3 deletion
         doNothing().when(songServiceClient).deleteSongById(anyLong());
         String csvIds = String.format("%d,%d,%d", resource1.getId(), resource2.getId(), resource3.getId());
 
@@ -156,9 +166,9 @@ class ResourceServiceComponentTest {
         assertFalse(resourceRepository.existsById(resource3.getId()));
 
         // Verify S3 cleanup calls
-        verify(s3Service).deleteFile("file1.mp3");
-        verify(s3Service).deleteFile("file2.mp3");
-        verify(s3Service).deleteFile("file3.mp3");
+        verify(s3Service).deleteFile("file1.mp3", stagingStorage);
+        verify(s3Service).deleteFile("file2.mp3", stagingStorage);
+        verify(s3Service).deleteFile("file3.mp3", stagingStorage);
     }
 
     @Test
@@ -169,9 +179,9 @@ class ResourceServiceComponentTest {
         Resource resource2 = resourceRepository.save(createResource("file2.mp3"));
 
         // S3 deletion fails for first file, succeeds for second
-        doThrow(new RuntimeException("S3 delete failed")).when(s3Service).deleteFile("file1.mp3");
-        when(s3Service.fileExists("file1.mp3")).thenReturn(true); // Still exists
-        when(s3Service.fileExists("file2.mp3")).thenReturn(false); // Deleted successfully
+        doThrow(new RuntimeException("S3 delete failed")).when(s3Service).deleteFile("file1.mp3", stagingStorage);
+        when(s3Service.fileExists("file1.mp3", stagingStorage)).thenReturn(true); // Still exists
+        when(s3Service.fileExists("file2.mp3", stagingStorage)).thenReturn(false); // Deleted successfully
         doNothing().when(songServiceClient).deleteSongById(anyLong());
         String csvIds = String.format("%d,%d", resource1.getId(), resource2.getId());
 
@@ -192,7 +202,7 @@ class ResourceServiceComponentTest {
     void getResourceContent_WithRealDB_Success() {
         // Given
         Resource resource = resourceRepository.save(createResource("download-test.mp3"));
-        when(s3Service.downloadFile("download-test.mp3")).thenReturn(validMp3Data);
+        when(s3Service.downloadFile("download-test.mp3",stagingStorage)).thenReturn(validMp3Data);
 
         // When
         byte[] content = resourceService.getResourceContent(resource.getId());
@@ -201,7 +211,7 @@ class ResourceServiceComponentTest {
         assertArrayEquals(validMp3Data, content);
 
         // Verify real DB query happened
-        verify(s3Service).downloadFile("download-test.mp3");
+        verify(s3Service).downloadFile("download-test.mp3", stagingStorage);
     }
 
     @Test
@@ -229,8 +239,8 @@ class ResourceServiceComponentTest {
     void uploadResource_TransactionBoundary_WorksCorrectly() {
         // Given
         String s3Url = "https://test-bucket.s3.amazonaws.com/transaction-test.mp3";
-        when(s3Service.uploadMp3(any(byte[].class), anyString())).thenReturn(s3Url);
-        when(s3Service.fileExists(anyString())).thenReturn(true);
+        when(s3Service.uploadMp3(any(byte[].class), anyString(), any())).thenReturn(s3Url);
+        when(s3Service.fileExists(anyString(), any())).thenReturn(true);
 
         // When
         Long resourceId = resourceService.uploadResource(validMp3Data);

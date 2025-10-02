@@ -1,6 +1,7 @@
 package com.learn.resource_processor.service.impl;
 
 import com.learn.resource_processor.dto.SongDTO;
+import com.learn.resource_processor.kafka.ResourceProducer;
 import com.learn.resource_processor.service.ResourceProcessorService;
 import com.learn.resource_processor.client.ResourceServiceClient;
 import com.learn.resource_processor.client.SongServiceClient;
@@ -16,17 +17,21 @@ import java.io.ByteArrayInputStream;
 public class ResourceProcessorServiceImpl implements ResourceProcessorService {
     private final ResourceServiceClient resourceServiceClient;
     private final SongServiceClient songServiceClient;
+    private final ResourceProducer resourceProducer;
 
-    public ResourceProcessorServiceImpl(ResourceServiceClient resourceServiceClient, SongServiceClient songServiceClient) {
+    public ResourceProcessorServiceImpl(ResourceServiceClient resourceServiceClient, SongServiceClient songServiceClient, ResourceProducer resourceProducer) {
         this.resourceServiceClient = resourceServiceClient;
         this.songServiceClient = songServiceClient;
+        this.resourceProducer = resourceProducer;
     }
 
     @Override
     public void process(Long resourceId) {
         byte[] resourceData = resourceServiceClient.getResourceData(resourceId);
+        System.out.println("Fetched resource data for ID: " + resourceId);
         SongDTO songDTO = processMp3Resource(resourceData, resourceId);
         songServiceClient.saveSongMetadata(songDTO);
+        resourceProducer.sendId(resourceId);
         System.out.println("Processed resource ID: " + resourceId);
     }
 

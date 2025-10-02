@@ -1,5 +1,6 @@
 package com.learn.resource_service.entity;
 
+import com.learn.resource_service.dto.StorageType;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -16,6 +17,11 @@ public class Resource {
     private Long id;
     private String s3Url;
     private String originalFileName;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "storage_type", nullable = false)
+    private StorageType storageType;
+
     private LocalDateTime uploadedAt;
 
     public Resource() {

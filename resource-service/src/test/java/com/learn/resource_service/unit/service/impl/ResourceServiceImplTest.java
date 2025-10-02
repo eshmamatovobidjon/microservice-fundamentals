@@ -1,6 +1,8 @@
 package com.learn.resource_service.unit.service.impl;
 
 import com.learn.resource_service.client.SongServiceClient;
+import com.learn.resource_service.dto.StorageDTO;
+import com.learn.resource_service.dto.StorageType;
 import com.learn.resource_service.entity.Resource;
 import com.learn.resource_service.repository.ResourceRepository;
 import com.learn.resource_service.kafka.ResourceProducer;
@@ -30,21 +32,29 @@ class ResourceServiceImplTest {
     @InjectMocks
     private ResourceServiceImpl resourceService;
 
+    private StorageDTO stagingStorage;
+
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
+
+        stagingStorage = new StorageDTO();
+        stagingStorage.setId(1L);
+        stagingStorage.setStorageType(StorageType.STAGING);
+        stagingStorage.setBucket("test-bucket");
+        stagingStorage.setPath("staging/");
     }
 
     @Test
     void uploadResource_success() throws Exception{
         byte[] mp3Data = getClass().getResourceAsStream("/test.mp3").readAllBytes();
-        when(s3Service.uploadMp3(any(), anyString())).thenReturn("https://bucket.s3.amazonaws.com/file.mp3");
+        when(s3Service.uploadMp3(any(), anyString(), any())).thenReturn("https://bucket.s3.amazonaws.com/file.mp3");
         when(resourceRepository.save(any())).thenAnswer(inv -> {
             Resource r = inv.getArgument(0);
             r.setId(1L);
             return r;
         });
-        when(s3Service.fileExists(anyString())).thenReturn(true);
+        when(s3Service.fileExists(anyString(), any())).thenReturn(true);
 
         Long id = resourceService.uploadResource(mp3Data);
 
@@ -64,7 +74,7 @@ class ResourceServiceImplTest {
         resource.setId(1L);
         resource.setS3Url("https://bucket.s3.amazonaws.com/file.mp3");
         when(resourceRepository.findById(1L)).thenReturn(Optional.of(resource));
-        when(s3Service.fileExists(anyString())).thenReturn(true);
+        when(s3Service.fileExists(anyString(), any())).thenReturn(true);
 
         Resource result = resourceService.getResourceById(1L);
 
@@ -84,12 +94,12 @@ class ResourceServiceImplTest {
         resource.setS3Url("https://bucket.s3.amazonaws.com/file.mp3");
         when(resourceRepository.findById(1L)).thenReturn(Optional.of(resource));
 
-        when(s3Service.fileExists("file.mp3")).thenReturn(false, false);
+        when(s3Service.fileExists("file.mp3", stagingStorage)).thenReturn(false, false);
         doNothing().when(songServiceClient).deleteSongById(1L);
         List<Long> deleted = resourceService.deleteResourcesByIds("1");
 
         assertEquals(List.of(1L), deleted);
-        verify(s3Service).deleteFile("file.mp3");
+        verify(s3Service).deleteFile("file.mp3", stagingStorage);
         verify(resourceRepository).delete(resource);
     }
 
@@ -101,7 +111,7 @@ class ResourceServiceImplTest {
         when(resourceRepository.findById(1L)).thenReturn(Optional.of(resource));
         // Load a valid MP3 file for Tika validation
         byte[] mp3Data = getClass().getResourceAsStream("/test.mp3").readAllBytes();
-        when(s3Service.downloadFile(anyString())).thenReturn(mp3Data);
+        when(s3Service.downloadFile(anyString(), any())).thenReturn(mp3Data);
 
         byte[] content = resourceService.getResourceContent(1L);
 
