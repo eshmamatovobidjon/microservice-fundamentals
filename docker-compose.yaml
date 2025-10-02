@@ -28,6 +28,72 @@ services:
     networks:
       - microservices-net
 
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: elasticsearch
+    environment:
+      - node.name=elasticsearch
+      - cluster.name=microservices-logs
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - xpack.security.enabled=false
+      - xpack.security.enrollment.enabled=false
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - microservices-net
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - SERVER_NAME=kibana
+      - SERVER_HOST=0.0.0.0
+    ports:
+      - "5601:5601"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5601/api/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - microservices-net
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.11.0
+    container_name: filebeat
+    user: root
+    command: filebeat -e -strict.perms=false
+    volumes:
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      # Mount the entire /app/logs directory from each service
+      - resource-processor-logs:/usr/share/filebeat/logs/resource-processor:ro
+      - resource-service-logs:/usr/share/filebeat/logs/resource-service:ro
+      - song-service-logs:/usr/share/filebeat/logs/song-service:ro
+      - storage-service-logs:/usr/share/filebeat/logs/storage-service:ro
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - microservices-net
+
   eureka-server:
     container_name: eureka-server
     build:
@@ -136,6 +202,10 @@ services:
       STORAGE_SERVICE_PORT: "8080"
       EUREKA_URL: http://eureka-server:8761
       KAFKA_URL: "kafka:9092"
+      ELASTICSEARCH_HOST: elasticsearch
+      ELASTICSEARCH_PORT: 9200
+    volumes:
+      - resource-service-logs:/app/logs
     depends_on:
       resource-db:
         condition: service_healthy
@@ -144,6 +214,8 @@ services:
       song-service:
         condition: service_started
       eureka-server:
+        condition: service_healthy
+      elasticsearch:
         condition: service_healthy
     networks:
       - microservices-net
@@ -163,10 +235,16 @@ services:
       SONG_SERVICE_PORT: "8080"
       EUREKA_URL: http://eureka-server:8761
       KAFKA_URL: "kafka:9092"
+      ELASTICSEARCH_HOST: elasticsearch
+      ELASTICSEARCH_PORT: 9200
+    volumes:
+      - resource-processor-logs:/app/logs
     depends_on:
       song-service:
         condition: service_started
       eureka-server:
+        condition: service_healthy
+      elasticsearch:
         condition: service_healthy
     networks:
       - microservices-net
@@ -186,10 +264,16 @@ services:
       SPRING_DATASOURCE_USERNAME: "${SONG_DB_USER}"
       SPRING_DATASOURCE_PASSWORD: "${SONG_DB_PASSWORD}"
       EUREKA_URL: http://eureka-server:8761
+      ELASTICSEARCH_HOST: elasticsearch
+      ELASTICSEARCH_PORT: 9200
+    volumes:
+      - song-service-logs:/app/logs
     depends_on:
       song-db:
         condition: service_healthy
       eureka-server:
+        condition: service_healthy
+      elasticsearch:
         condition: service_healthy
     networks:
       - microservices-net
@@ -209,13 +293,31 @@ services:
       SPRING_DATASOURCE_USERNAME: "${STORAGE_DB_USER}"
       SPRING_DATASOURCE_PASSWORD: "${STORAGE_DB_PASSWORD}"
       EUREKA_URL: http://eureka-server:8761
+      ELASTICSEARCH_HOST: elasticsearch
+      ELASTICSEARCH_PORT: 9200
+    volumes:
+      - storage-service-logs:/app/logs
     depends_on:
       storage-db:
         condition: service_healthy
       eureka-server:
         condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
     networks:
       - microservices-net
+
+volumes:
+  elasticsearch-data:
+    driver: local
+  resource-processor-logs:
+    driver: local
+  resource-service-logs:
+    driver: local
+  song-service-logs:
+    driver: local
+  storage-service-logs:
+    driver: local
 
 networks:
   microservices-net:

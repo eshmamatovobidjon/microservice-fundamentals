@@ -3,6 +3,7 @@ package com.learn.resource_processor.integration;
 import com.learn.resource_processor.client.ResourceServiceClient;
 import com.learn.resource_processor.client.SongServiceClient;
 import com.learn.resource_processor.dto.SongDTO;
+import com.learn.resource_processor.kafka.ResourceProducer;
 import com.learn.resource_processor.service.impl.ResourceProcessorServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
@@ -24,13 +25,16 @@ class ResourceProcessorServiceIntegrationTest {
     @MockitoBean
     private SongServiceClient songServiceClient;
 
+    @MockitoBean
+    private ResourceProducer resourceProducer;
+
     private ResourceProcessorServiceImpl resourceProcessorService;
 
     private byte[] validMp3Data;
 
     @BeforeEach
     void setUp() {
-        resourceProcessorService = new ResourceProcessorServiceImpl(resourceServiceClient, songServiceClient);
+        resourceProcessorService = new ResourceProcessorServiceImpl(resourceServiceClient, songServiceClient, resourceProducer);
         validMp3Data = createValidMp3Data();
     }
 

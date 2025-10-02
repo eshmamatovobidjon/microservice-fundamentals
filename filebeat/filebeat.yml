@@ -1,0 +1,70 @@
+filebeat.inputs:
+  - type: log
+    enabled: true
+    paths:
+      - /usr/share/filebeat/logs/resource-processor/resource-processor.log
+      - /usr/share/filebeat/logs/resource-processor/resource-processor-*.log
+    fields:
+      app_name: resource-processor
+      environment: docker
+    fields_under_root: true
+    json.keys_under_root: true
+    json.add_error_key: true
+    json.message_key: message
+    close_inactive: 5m
+    scan_frequency: 10s
+
+  - type: log
+    enabled: true
+    paths:
+      - /usr/share/filebeat/logs/resource-service/resource-service.log
+      - /usr/share/filebeat/logs/resource-service/resource-service-*.log
+    fields:
+      app_name: resource-service
+      environment: docker
+    fields_under_root: true
+    json.keys_under_root: true
+    json.add_error_key: true
+    json.message_key: message
+    close_inactive: 5m
+    scan_frequency: 10s
+
+  - type: log
+    enabled: true
+    paths:
+      - /usr/share/filebeat/logs/song-service/song-service.log
+      - /usr/share/filebeat/logs/song-service/song-service-*.log
+    fields:
+      app_name: song-service
+      environment: docker
+    fields_under_root: true
+    json.keys_under_root: true
+    json.add_error_key: true
+    json.message_key: message
+    close_inactive: 5m
+    scan_frequency: 10s
+
+  - type: log
+    enabled: true
+    paths:
+      - /usr/share/filebeat/logs/storage-service/storage-service.log
+      - /usr/share/filebeat/logs/storage-service/storage-service-*.log
+    fields:
+      app_name: storage-service
+      environment: docker
+    fields_under_root: true
+    json.keys_under_root: true
+    json.add_error_key: true
+    json.message_key: message
+    close_inactive: 5m
+    scan_frequency: 10s
+
+output.elasticsearch:
+  hosts: ["elasticsearch:9200"]
+  index: "mp3-app-logs-%{+yyyy.MM.dd}"
+
+setup.template.enabled: true
+setup.template.name: "mp3-app-logs"
+setup.template.pattern: "mp3-app-logs-*"
+
+logging.level: info
