@@ -4,7 +4,6 @@ import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientManager;
-import org.springframework.security.oauth2.client.web.client.OAuth2ClientHttpRequestInterceptor;
 import org.springframework.web.client.RestTemplate;
 
 
@@ -23,7 +22,7 @@ public class RestTemplateConfig {
     @Bean
     public RestTemplate restTemplate(RestTemplateBuilder builder) {
         return builder
-                .interceptors(restTemplateInterceptor, new OAuth2ClientHttpRequestInterceptor(authorizedClientManager))
+                .interceptors(restTemplateInterceptor, new OAuth2ClientCredentialsRestTemplateInterceptor(authorizedClientManager))
                 .build();
     }
 }
