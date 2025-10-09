@@ -9,18 +9,18 @@ import org.springframework.web.client.RestTemplate;
 public class RestTemplateConfig {
 
     private final RestTemplateInterceptor restTemplateInterceptor;
+    private final SmartAuthInterceptor smartAuthInterceptor;
 
-    private final JwtTokenRelayInterceptor jwtTokenRelayInterceptor;
-
-    public RestTemplateConfig(RestTemplateInterceptor restTemplateInterceptor, JwtTokenRelayInterceptor jwtTokenRelayInterceptor) {
+    public RestTemplateConfig(RestTemplateInterceptor restTemplateInterceptor,
+                              SmartAuthInterceptor smartAuthInterceptor) {
         this.restTemplateInterceptor = restTemplateInterceptor;
-        this.jwtTokenRelayInterceptor = jwtTokenRelayInterceptor;
+        this.smartAuthInterceptor = smartAuthInterceptor;
     }
 
     @Bean
     public RestTemplate restTemplate(RestTemplateBuilder builder) {
         return builder
-                .interceptors(restTemplateInterceptor, jwtTokenRelayInterceptor)
+                .interceptors(restTemplateInterceptor, smartAuthInterceptor)
                 .build();
     }
 }

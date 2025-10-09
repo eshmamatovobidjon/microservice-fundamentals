@@ -23,8 +23,7 @@ public class JwtTokenRelayInterceptor implements ClientHttpRequestInterceptor {
                                         ClientHttpRequestExecution execution) throws IOException {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
-        if (authentication instanceof JwtAuthenticationToken) {
-            JwtAuthenticationToken jwtAuth = (JwtAuthenticationToken) authentication;
+        if (authentication instanceof JwtAuthenticationToken jwtAuth) {
             Jwt jwt = jwtAuth.getToken();
             String tokenValue = jwt.getTokenValue();
 

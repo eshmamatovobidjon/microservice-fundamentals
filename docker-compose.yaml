@@ -277,6 +277,8 @@ services:
       ELASTICSEARCH_PORT: 9200
       KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/microservices
       KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/microservices/protocol/openid-connect/certs
+      KEYCLOAK_CLIENT_ID: resource-service
+      KEYCLOAK_CLIENT_SECRET: C4ZLHDVLdj6aMs1E5F5ByCpSabwe0nkY
     volumes:
       - resource-service-logs:/app/logs
     depends_on:
@@ -314,7 +316,6 @@ services:
       ELASTICSEARCH_PORT: 9200
       KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/microservices
       KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/microservices/protocol/openid-connect/certs
-      # Service account credentials for machine-to-machine communication
       KEYCLOAK_CLIENT_ID: resource-processor-service
       KEYCLOAK_CLIENT_SECRET: dMLb6d8q4cpfiN64Fpb4gBrsjqNh6224
       KEYCLOAK_TOKEN_URI: http://keycloak:8080/realms/microservices/protocol/openid-connect/token
@@ -351,6 +352,8 @@ services:
       ELASTICSEARCH_PORT: 9200
       KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/microservices
       KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/microservices/protocol/openid-connect/certs
+      KEYCLOAK_CLIENT_ID: song-service
+      KEYCLOAK_CLIENT_SECRET: 4bPJwp6vS3JUmwYPg4WOWnEEzBSXIeJX
     volumes:
       - song-service-logs:/app/logs
     depends_on:
@@ -384,6 +387,8 @@ services:
       ELASTICSEARCH_PORT: 9200
       KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/microservices
       KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/microservices/protocol/openid-connect/certs
+      KEYCLOAK_CLIENT_ID: storage-service
+      KEYCLOAK_CLIENT_SECRET: xvtOeJyndwlDIPSr1ZOZQMJoYFXZ73Rf
     volumes:
       - storage-service-logs:/app/logs
     depends_on:
