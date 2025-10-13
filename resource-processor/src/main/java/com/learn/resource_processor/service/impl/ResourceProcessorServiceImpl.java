@@ -10,9 +10,11 @@ import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.mp3.Mp3Parser;
 import org.apache.tika.sax.BodyContentHandler;
 import org.springframework.stereotype.Service;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.ByteArrayInputStream;
 
+@Slf4j
 @Service
 public class ResourceProcessorServiceImpl implements ResourceProcessorService {
     private final ResourceServiceClient resourceServiceClient;
@@ -27,15 +29,20 @@ public class ResourceProcessorServiceImpl implements ResourceProcessorService {
 
     @Override
     public void process(Long resourceId) {
+        log.info("Starting processing for resourceId: {}", resourceId);
         byte[] resourceData = resourceServiceClient.getResourceData(resourceId);
-        System.out.println("Fetched resource data for ID: " + resourceId);
+        log.info("Fetched resource data for ID: {} ({} bytes)", resourceId, resourceData != null ? resourceData.length : 0);
         SongDTO songDTO = processMp3Resource(resourceData, resourceId);
+        log.info("Extracted metadata for resourceId {}: {}", resourceId, songDTO);
         songServiceClient.saveSongMetadata(songDTO);
+        log.info("Saved song metadata for resourceId: {}", resourceId);
         resourceProducer.sendId(resourceId);
-        System.out.println("Processed resource ID: " + resourceId);
+        log.info("Sent resourceId {} to Kafka topic for further processing", resourceId);
+        log.info("Finished processing for resourceId: {}", resourceId);
     }
 
     private SongDTO processMp3Resource(byte[] mp3Data, Long resourceId) {
+        log.debug("Processing MP3 resource for resourceId: {}", resourceId);
         Metadata metadata = getMetadata(mp3Data);
 
         String title = getOrDefault(metadata, "title", "Unknown Title");
@@ -54,6 +61,7 @@ public class ResourceProcessorServiceImpl implements ResourceProcessorService {
         songDTO.setDuration(formattedDuration);
         songDTO.setYear(releaseDate.length() >= 4 ? releaseDate.substring(0, 4) : "1900");
 
+        log.debug("MP3 metadata for resourceId {}: title={}, artist={}, album={}, year={}, duration={}", resourceId, title, artist, album, songDTO.getYear(), formattedDuration);
         return songDTO;
     }
 
@@ -65,6 +73,7 @@ public class ResourceProcessorServiceImpl implements ResourceProcessorService {
             ParseContext context = new ParseContext();
             parser.parse(bais, handler, metadata, context);
         } catch (Exception e) {
+            log.error("Error parsing MP3 metadata", e);
             throw new RuntimeException("Error parsing MP3 metadata", e);
         }
         return metadata;
@@ -82,6 +91,7 @@ public class ResourceProcessorServiceImpl implements ResourceProcessorService {
             int secs = (int) (seconds % 60);
             return String.format("%02d:%02d", minutes, secs);
         } catch (NumberFormatException e) {
+            log.warn("Failed to parse duration '{}', defaulting to 00:00", durationStr);
             return "00:00"; // Fallback if conversion fails
         }
     }

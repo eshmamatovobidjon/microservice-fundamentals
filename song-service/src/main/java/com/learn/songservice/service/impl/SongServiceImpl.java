@@ -6,11 +6,13 @@ import com.learn.songservice.exception.ConflictException;
 import com.learn.songservice.repository.SongRepository;
 import com.learn.songservice.service.SongService;
 import org.springframework.stereotype.Service;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+@Slf4j
 @Service
 public class SongServiceImpl implements SongService {
 
@@ -24,17 +26,22 @@ public class SongServiceImpl implements SongService {
     public Song createSong(SongDTO songDTO) {
         Song song = convertToEntity(songDTO);
         if (songRepository.existsById(song.getId())) {
+            log.warn("Song metadata for this resource already exists id = {}", song.getId());
             throw new ConflictException("Song metadata for this resource already exists id = " + song.getId());
         }
-        System.out.println("Song to be created: " + song);
+        log.info("Creating new song: {}", song);
         return songRepository.save(song);
     }
 
     @Override
     public Song getSong(Long id) {
         validateId(id);
+        log.info("Fetching song with ID: {}", id);
         return songRepository.findById(id)
-                .orElseThrow(() -> new NoSuchElementException("Song with ID=" + id + " not found"));
+                .orElseThrow(() -> {
+                    log.error("Song with ID={} not found", id);
+                    return new NoSuchElementException("Song with ID=" + id + " not found");
+                });
     }
 
     @Override
@@ -48,8 +55,12 @@ public class SongServiceImpl implements SongService {
                 if (songRepository.existsById(id)) {
                     songRepository.deleteById(id);
                     deletedIds.add(id);
+                    log.info("Deleted song with ID: {}", id);
+                } else {
+                    log.warn("Song with ID {} does not exist, skipping delete", id);
                 }
             } catch (NumberFormatException ignored) {
+                log.warn("Invalid song ID format in deleteSongs: '{}', skipping", idStr);
             }
         }
         return deletedIds;
@@ -68,15 +79,18 @@ public class SongServiceImpl implements SongService {
 
     public void validateId(Long id) {
         if (id == null || id <= 0) {
+            log.error("Invalid ID: {}", id);
             throw new IllegalArgumentException("Invalid ID");
         }
     }
 
     public void validateCsvIds(String csvIds) {
         if (csvIds == null || csvIds.isEmpty()) {
+            log.error("CSV IDs are required but got: '{}'", csvIds);
             throw new IllegalArgumentException("CSV IDs are required");
         }
         if (csvIds.length() >= 200) {
+            log.error("CSV string length must be less than 200 characters. Got {}", csvIds.length());
             throw new IllegalArgumentException("CSV string length must be less than 200 characters. Got " + csvIds.length());
         }
         String[] ids = csvIds.split(",");
@@ -85,9 +99,9 @@ public class SongServiceImpl implements SongService {
                 long id = Long.parseLong(idStr.trim());
                 validateId(id);
             } catch (NumberFormatException e) {
+                log.error("Invalid ID format in CSV: '{}'", idStr);
                 throw new IllegalArgumentException("Invalid ID format: " + idStr);
             }
         }
     }
 }
-

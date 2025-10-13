@@ -19,6 +19,15 @@ FROM eclipse-temurin:17-alpine
 
 WORKDIR /app
 
+RUN mkdir -p /app/logs
+
+RUN apk add --no-cache curl
+
 COPY --from=build /app/target/*.jar app.jar
 
-CMD ["java", "-jar", "app.jar"]
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8085/actuator/health || exit 1
+
+ENV JAVA_OPTS="-Xmx512m -Xms256m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75"
+
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
