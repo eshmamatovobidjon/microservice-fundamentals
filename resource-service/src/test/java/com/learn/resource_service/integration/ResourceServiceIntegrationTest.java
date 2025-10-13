@@ -10,7 +10,6 @@ import com.learn.resource_service.repository.ResourceRepository;
 import com.learn.resource_service.service.ResourceService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -27,7 +26,6 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -89,11 +87,12 @@ class ResourceServiceIntegrationTest {
     void setUp() throws Exception {
         baseUrl = "http://localhost:" + port + "/resources";
 
-        stagingStorage = new StorageDTO();
-        stagingStorage.setId(1L);
-        stagingStorage.setStorageType(StorageType.STAGING);
-        stagingStorage.setBucket("test-bucket");
-        stagingStorage.setPath("staging/");
+        stagingStorage = StorageDTO.builder()
+                .id(1L)
+                .storageType(StorageType.STAGING)
+                .bucket("test-bucket")
+                .path("staging/")
+                .build();
 
         validMp3Data = createValidMp3Data();
 

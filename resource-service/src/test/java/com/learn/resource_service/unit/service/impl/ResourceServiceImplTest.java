@@ -38,11 +38,12 @@ class ResourceServiceImplTest {
     void setUp() {
         MockitoAnnotations.openMocks(this);
 
-        stagingStorage = new StorageDTO();
-        stagingStorage.setId(1L);
-        stagingStorage.setStorageType(StorageType.STAGING);
-        stagingStorage.setBucket("test-bucket");
-        stagingStorage.setPath("staging/");
+        stagingStorage = StorageDTO.builder()
+                .id(1L)
+                .storageType(StorageType.STAGING)
+                .bucket("test-bucket")
+                .path("staging/")
+                .build();
     }
 
     @Test

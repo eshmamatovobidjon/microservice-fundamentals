@@ -82,11 +82,12 @@ class ResourceServiceComponentTest {
         resourceRepository.deleteAll();
         validMp3Data = createValidMp3Data();
 
-        stagingStorage = new StorageDTO();
-        stagingStorage.setId(1L);
-        stagingStorage.setStorageType(StorageType.STAGING);
-        stagingStorage.setBucket("test-bucket");
-        stagingStorage.setPath("staging/");
+        stagingStorage = StorageDTO.builder()
+                .id(1L)
+                .storageType(StorageType.STAGING)
+                .bucket("test-bucket")
+                .path("staging/")
+                .build();
     }
 
     private byte[] createValidMp3Data() {
