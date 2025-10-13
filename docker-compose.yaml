@@ -1,5 +1,51 @@
 version: '3.8'
 services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0.7
+    container_name: keycloak
+    command: start-dev
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloak
+      KC_HOSTNAME_STRICT: false
+      KC_HTTP_ENABLED: true
+    ports:
+      - "8080:8080"
+    depends_on:
+      keycloak-db:
+        condition: service_healthy
+    networks:
+      - microservices-net
+    healthcheck:
+      test: [ "CMD-SHELL", "timeout 5 bash -c '</dev/tcp/localhost/8080' || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+  keycloak-db:
+    image: postgres:16
+    container_name: keycloak-db
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: keycloak
+    ports:
+      - "5436:5432"
+    volumes:
+      - keycloak-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - microservices-net
+
   zookeeper:
     image: confluentinc/cp-zookeeper:7.6.1
     container_name: zookeeper
@@ -105,7 +151,6 @@ services:
     command: filebeat -e -strict.perms=false
     volumes:
       - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
-      # Mount the entire /app/logs directory from each service
       - resource-processor-logs:/usr/share/filebeat/logs/resource-processor:ro
       - resource-service-logs:/usr/share/filebeat/logs/resource-service:ro
       - song-service-logs:/usr/share/filebeat/logs/song-service:ro
@@ -139,12 +184,16 @@ services:
       context: ./api-gateway
       dockerfile: Dockerfile
     ports:
-      - "8080:8080"
+      - "8280:8280"
     environment:
-      SERVER_PORT: 8080
+      SERVER_PORT: 8280
       EUREKA_URL: http://eureka-server:8761
+      KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/microservices
+      KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/microservices/protocol/openid-connect/certs
     depends_on:
       eureka-server:
+        condition: service_healthy
+      keycloak:
         condition: service_healthy
     networks:
       - microservices-net
@@ -219,13 +268,17 @@ services:
       SPRING_DATASOURCE_USERNAME: "${RESOURCE_DB_USER}"
       SPRING_DATASOURCE_PASSWORD: "${RESOURCE_DB_PASSWORD}"
       SONG_SERVICE_NAME: "api-gateway"
-      SONG_SERVICE_PORT: "8080"
+      SONG_SERVICE_PORT: "8280"
       STORAGE_SERVICE_NAME: "api-gateway"
-      STORAGE_SERVICE_PORT: "8080"
+      STORAGE_SERVICE_PORT: "8280"
       EUREKA_URL: http://eureka-server:8761
       KAFKA_URL: "kafka:9092"
       ELASTICSEARCH_HOST: elasticsearch
       ELASTICSEARCH_PORT: 9200
+      KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/microservices
+      KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/microservices/protocol/openid-connect/certs
+      KEYCLOAK_CLIENT_ID: resource-service
+      KEYCLOAK_CLIENT_SECRET: C4ZLHDVLdj6aMs1E5F5ByCpSabwe0nkY
     volumes:
       - resource-service-logs:/app/logs
     depends_on:
@@ -238,6 +291,8 @@ services:
       eureka-server:
         condition: service_healthy
       elasticsearch:
+        condition: service_healthy
+      keycloak:
         condition: service_healthy
     networks:
       - microservices-net
@@ -252,13 +307,18 @@ services:
     environment:
       SERVER_PORT: 8085
       RESOURCE_SERVICE_NAME: "api-gateway"
-      RESOURCE_SERVICE_PORT: "8080"
+      RESOURCE_SERVICE_PORT: "8280"
       SONG_SERVICE_NAME: "api-gateway"
-      SONG_SERVICE_PORT: "8080"
+      SONG_SERVICE_PORT: "8280"
       EUREKA_URL: http://eureka-server:8761
       KAFKA_URL: "kafka:9092"
       ELASTICSEARCH_HOST: elasticsearch
       ELASTICSEARCH_PORT: 9200
+      KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/microservices
+      KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/microservices/protocol/openid-connect/certs
+      KEYCLOAK_CLIENT_ID: resource-processor-service
+      KEYCLOAK_CLIENT_SECRET: dMLb6d8q4cpfiN64Fpb4gBrsjqNh6224
+      KEYCLOAK_TOKEN_URI: http://keycloak:8080/realms/microservices/protocol/openid-connect/token
     volumes:
       - resource-processor-logs:/app/logs
     depends_on:
@@ -267,6 +327,8 @@ services:
       eureka-server:
         condition: service_healthy
       elasticsearch:
+        condition: service_healthy
+      keycloak:
         condition: service_healthy
     networks:
       - microservices-net
@@ -288,6 +350,10 @@ services:
       EUREKA_URL: http://eureka-server:8761
       ELASTICSEARCH_HOST: elasticsearch
       ELASTICSEARCH_PORT: 9200
+      KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/microservices
+      KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/microservices/protocol/openid-connect/certs
+      KEYCLOAK_CLIENT_ID: song-service
+      KEYCLOAK_CLIENT_SECRET: 4bPJwp6vS3JUmwYPg4WOWnEEzBSXIeJX
     volumes:
       - song-service-logs:/app/logs
     depends_on:
@@ -296,6 +362,8 @@ services:
       eureka-server:
         condition: service_healthy
       elasticsearch:
+        condition: service_healthy
+      keycloak:
         condition: service_healthy
     networks:
       - microservices-net
@@ -317,6 +385,10 @@ services:
       EUREKA_URL: http://eureka-server:8761
       ELASTICSEARCH_HOST: elasticsearch
       ELASTICSEARCH_PORT: 9200
+      KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/microservices
+      KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/microservices/protocol/openid-connect/certs
+      KEYCLOAK_CLIENT_ID: storage-service
+      KEYCLOAK_CLIENT_SECRET: xvtOeJyndwlDIPSr1ZOZQMJoYFXZ73Rf
     volumes:
       - storage-service-logs:/app/logs
     depends_on:
@@ -326,11 +398,15 @@ services:
         condition: service_healthy
       elasticsearch:
         condition: service_healthy
+      keycloak:
+        condition: service_healthy
     networks:
       - microservices-net
 
 volumes:
   elasticsearch-data:
+    driver: local
+  keycloak-db-data:
     driver: local
   resource-processor-logs:
     driver: local
